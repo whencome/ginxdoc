@@ -1,0 +1,956 @@
+<!-- 
+Program:
+    Gin-Docs HTML Template
+Version:
+    0.0.1
+History:
+    Created on 2024/05/13
+    Last modified on 2024/05/13
+Author:
+    kwkw
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
+
+    <!-- ___CSS_TEMPLATE___ -->
+
+    <style>
+        [v-cloak] {
+            display: none !important;
+        }
+    </style>
+
+    <link rel="icon" href="static/icon/book.svg" type="image/x-icon">
+    <link rel="shortcut icon" href="static/icon/book.svg" type="image/x-icon">
+
+    <title>Documentation</title>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <el-card class="box-card" :style="mainDisplay">
+            <el-container>
+                <el-header>
+                    <el-menu :default-active="headerIndex" class="el-menu-demo" mode="horizontal">
+                        <el-menu-item index="1">{{ titleVersion }}</el-menu-item>
+                        <el-button class="lock" type="text" icon="el-icon-lock" @click="lock"
+                            v-if="authPasswordSHA2 != ''"></el-button>
+                        <el-upload class="upload" :on-change="importTestData" :before-upload="importTestDataBf"
+                            accept="application/json" action="" v-if="debugDisplay === 'display:block'">
+                            <i class="el-icon-upload2" style="color:#409eff;"></i>
+                        </el-upload>
+                        <el-button class="download" type="text" icon="el-icon-download" @click="exportTestData"
+                            v-if="debugDisplay === 'display:block'">
+                        </el-button>
+                        <el-button class="download" type="text" icon="el-icon-download" @click="downloadDoc"
+                            v-if="docDisplay === 'display:block'">
+                        </el-button>
+                        <el-button class="debug" type="text" :icon="debugShowIcon" @click="debugShow"></el-button>
+                    </el-menu>
+                </el-header>
+                <el-main v-loading="loading" :style="docDisplay">
+                    <el-row>
+                        <el-col :span="8">
+                            <el-input :placeholder="$t('Filter Keyword')" v-model="treeFilterText"
+                                style="padding-bottom:10px">
+                            </el-input>
+                            <div :style="menuStyle">
+                                <el-tree class="filter-tree" :data="treeDataNew" :props="treeDefaultProps" node-key="id"
+                                    highlight-current :filter-node-method="treeFilterNode" ref="apiTree"
+                                    @node-click="treeNodeClick">
+                                </el-tree>
+                            </div>
+                        </el-col>
+                        <el-col :span="16" style="padding-left:20px">
+                            <div :style="contentStyle">
+                                <article class="markdown-body">
+                                    <div id="md"></div>
+                                </article>
+                            </div>
+                        </el-col>
+                    </el-row>
+                </el-main>
+                <el-main :style="debugDisplay">
+                    <el-card class="box-card">
+                        <el-divider content-position="left">{{ $t("Request") }}</el-divider>
+                        <el-select v-model="methodValue" :placeholder="$t('Select')" style="width:8%;min-width:130px;">
+                            <el-option v-for="item in methodOptions" :key="item.value" :label="item.label"
+                                :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-autocomplete class="inline-input" v-model="hostValue" :fetch-suggestions="hostQuerySearch"
+                            :placeholder="$t('Input')" style="width:20%;min-width:160px;" clearable
+                            @change="hostChanged">
+                            <template slot-scope="{ item }">
+                                <div class="name">{{ item.value }}<el-button style="float:right;" type="text"
+                                        icon="el-icon-close" @click="clearHostOptions(item.value)">
+                                    </el-button>
+                                </div>
+                            </template>
+                        </el-autocomplete>
+                        <el-autocomplete class="inline-input" v-model="urlValue" :fetch-suggestions="urlQuerySearch"
+                            :placeholder="$t('Input')" style="width:50%;;min-width:209px;" clearable
+                            @change="urlChanged">
+                            <template slot-scope="{ item }">
+                                <div class="name">{{ item.value }}<el-button style="float:right;" type="text"
+                                        icon="el-icon-close" @click="clearUrlOptions(item.value)">
+                                    </el-button>
+                                </div>
+                            </template>
+                        </el-autocomplete>
+                        <el-button type="primary" style="width:6%;min-width:80px;" @click="sendRequest"
+                            :loading="loading">{{ $t("Send") }}</el-button>
+                    </el-card>
+                    <el-card class="box-card" style="margin-top:10px">
+                        <el-divider content-position="left">{{ $t("Headers") }}</el-divider>
+                        <el-row>
+                            <el-input v-model="headerNameInput" size="small" style="width:20%;min-width:160px;"
+                                :placeholder="$t('Name')" clearable>
+                            </el-input>
+                            <el-input v-model="headerValueInput" size="small" style="width:20%;min-width:160px;"
+                                :placeholder="$t('Value')" clearable>
+                            </el-input>
+                            <el-button type="primary" size="small" style="width:60px;" @click="addHeader">{{ $t("Add")
+                                }}
+                            </el-button>
+                        </el-row></br>
+                        <el-row>
+                            <el-tag v-for="tag in headerTags" :key="tag.name" closable :type="tag.type"
+                                style="margin-left: 10px;" @close="delHeader(tag)">
+                                {{tag.name.length>50?tag.name.substring(0,49)+"...":tag.name}}
+                            </el-tag>
+                        </el-row>
+                    </el-card>
+                    <el-card class="box-card" style="margin-top:10px">
+                        <el-divider content-position="left">{{ $t("Body") }}</el-divider>
+                        <el-row>
+                            <el-input type="textarea" :autosize="{ minRows: 6}" :placeholder="$t('Request Body')"
+                                v-model="bodyTextarea">
+                            </el-input>
+                            <el-button class="formatBody" type="text" icon="el-icon-brush" @click="formatBody">
+                            </el-button>
+                        </el-row>
+                    </el-card>
+                    <el-card class="box-card" style="margin-top:10px">
+                        <el-divider content-position="left">{{ $t("Response") }}</el-divider>
+                        <el-button class="copyResponse" type="text" icon="el-icon-document-copy" @click="copyResponse">
+                        </el-button>
+                        <el-tabs type="card" v-model="responseTabsActiveName">
+                            <el-tab-pane :label="$t('Headers')" name="Headers">
+                                <div id="responseHeaderText">
+                                    <pre>&nbsp;</pre>
+                                </div>
+                            </el-tab-pane>
+                            <el-tab-pane :label="$t('Response')" name="Response">
+                                <div id="responseContentText">
+                                    <pre>&nbsp;</pre>
+                                </div>
+                            </el-tab-pane>
+                            <el-tab-pane :label="$t('Preview')" name="Preview">
+                                <div id="responsePreviewText">
+                                    <pre>&nbsp;</pre>
+                                </div>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </el-card>
+                </el-main>
+            </el-container>
+            <a class="project-name-version" :href="PROJECT_URL" target="_blank">{{PROJECT_NAME}}
+                v{{PROJECT_VERSION}}</a>
+        </el-card>
+        <div class="auth" :style="authDisplay">
+            <el-card class="auth-box-card">
+                <div slot="header">
+                    <span>
+                        <h2>{{ $t("Welcome to") }} <a class="project-name" :href="PROJECT_URL"
+                                target="_blank">Gin-Docs</a></h2>
+                    </span>
+                    <span>{{ $t("Please enter the original password for $Config.PasswordSha2") }}</span>
+                </div>
+                <el-row>
+                    <el-input v-model="authPassword" style="width:70%;min-width:160px;" :placeholder="$t('PASSWORD')"
+                        show-password ref="passwordInput" @keyup.enter.native="verifyAuth">
+                    </el-input>
+                    <el-button type="primary" style="width:100px;" @click="verifyAuth" :loading="loading">{{
+                        $t("LOGIN") }}
+                    </el-button>
+                </el-row>
+            </el-card>
+        </div>
+    </div>
+</body>
+
+<!-- ___JS_TEMPLATE___ -->
+
+<script>
+    new Vue({
+        el: "#app",
+        i18n: new VueI18n({
+            locale: navigator.language.toLowerCase(),
+            messages: {
+                "zh-cn": zhLocale,
+                "zh": zhLocale
+            }
+        }),
+        data: {
+            loading: false,
+            headerIndex: "1",
+            treeFilterText: "",
+            treeData: {},
+            treeDefaultProps: {
+                label: "full_name",
+                children: "children"
+            },
+            PROJECT_NAME: "",
+            PROJECT_VERSION: "",
+            PROJECT_URL: "https://github.com/kwkwc/gin-docs/",
+            title: "Documentation",
+            version: "1.0.0",
+            description: "",
+            titleVersion: "Documentation",
+            noDocText: "No documentation found for this Api",
+            menuContentStyle: "padding-right:10px;overflow-y:auto;max-height:",
+            menuStyle: "padding-right:10px;overflow-y:auto;max-height:670px",
+            contentStyle: "padding-right:10px;overflow-y:auto;max-height:720px",
+            docDisplay: "display:block",
+            debugDisplay: "display:none",
+            debugShowIcon: "el-icon-picture-outline-round",
+            methodList: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "TRACE", "CONNECT", "PATCH"],
+            methodOptions: [],
+            methodValue: "GET",
+            hostOptions: [],
+            hostValue: "http://127.0.0.1",
+            hostValueBak: "",
+            urlOptions: [],
+            urlValue: "",
+            urlValueBak: "",
+            headerNameInput: "",
+            headerValueInput: "",
+            headerTagsTypeDict: { 0: "primary", 1: "success", 2: "info", 3: "warning", 4: "danger" },
+            headerTags: [],
+            bodyTextarea: "",
+            responseTabsActiveName: "Headers",
+            responseTabsActiveDict: { "Headers": "responseHeaderText", "Response": "responseContentText", "Preview": "responsePreviewText" },
+            authPassword: "",
+            authPasswordSHA2: "",
+            authDisplay: "display:none",
+            mainDisplay: "display:none",
+            optionsLocked: false
+        },
+        created: function () {
+            this.changeWindowSize()
+
+            document.title = this.title
+            document.getElementById("md").innerHTML = marked("# " + this.title)
+
+            this.makeMethodOptions()
+        },
+        mounted: function () {
+            this.getAuthCache()
+            this.getData()
+            this.getHostCache()
+            this.getHeaderCache()
+            this.pageShow()
+
+            window.onresize = () => {
+                this.changeWindowSize()
+            }
+        },
+        methods: {
+            changeWindowSize() {
+                let screenHeightMenu = window.innerHeight - 220
+                let screenHeightContent = screenHeightMenu + 50
+                this.menuStyle = this.menuContentStyle + screenHeightMenu + "px"
+                this.contentStyle = this.menuContentStyle + screenHeightContent + "px"
+            },
+            getData() {
+                this.loading = true
+                axios({
+                    method: "GET",
+                    url: "data",
+                    timeout: 1000 * 30,
+                    headers: { "Auth-Password-SHA2": this.authPasswordSHA2 }
+                }).then(res => {
+                    this.setCache("cache:auth", this.authPasswordSHA2)
+                    this.mainShow()
+                    this.treeData = res.data.data
+                    this.PROJECT_NAME = res.data.PROJECT_NAME
+                    this.PROJECT_VERSION = res.data.PROJECT_VERSION
+                    this.title = res.data.title
+                    this.version = res.data.version
+                    this.description = res.data.description
+                    this.titleVersion = this.title + " (" + this.version + ")"
+                    this.noDocText = res.data.noDocText
+                    this.hostValue = res.data.host
+                    document.title = this.titleVersion
+                    let md = "# " + this.titleVersion
+                    if (this.description != "") {
+                        md += "\n> " + this.description
+                    }
+                    document.getElementById("md").innerHTML = marked(md)
+                    this.makeUrlOptions(res.data.data)
+                    this.getUrlCache()
+                    this.jumpAnchor()
+                    this.loading = false
+                },
+                    err => {
+                        if (err.response && err.response.status === 401) {
+                            this.authShow()
+                            if (this.authPassword != "") {
+                                this.$message.error(this.$t("Incorrect password"))
+                            }
+                            else {
+                                this.$message.error(this.$t("Unauthorized"))
+                            }
+                        }
+                        else {
+                            this.mainShow()
+                            this.$message.error(this.$t("Error"))
+                        }
+                        this.loading = false
+                    }
+                )
+            },
+            make_md(md, con) {
+                md += "### 接口描述" + "\n\n"
+                md += con.description + "\n\n"
+                md += "### 请求地址" + "\n\n"
+                var urls = new Array()
+                urls = con.url.split(" ")
+                if (urls.length == 1) {
+                    urls = [urls[0].split("\t")[0]]
+                }
+                for (i = 0; i < urls.length; i++) {
+                    md += "- " + urls[i].replace(/\t/g, " ").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "\n\n"
+                }
+                if (con.api_type === "api") {
+                    md += "### 请求方式" + "\n\n"
+                    md += "- " + con.method + "\n\n"
+                }
+                md += "### 请求参数" + "\n\n"
+                if (con.param_md != "") {
+                    md += con.param_md + "\n\n"
+                } else {
+                    md += "- 无\n\n"
+                }
+                if (con.mime != "") {
+                    md += "### 响应格式" + "\n\n"
+                    md += "- " + con.mime + "\n\n"
+                }
+                /*
+                if (con.doc == this.noDocText && con.doc_md != "") {
+                }
+                else {
+                    md += "### doc" + "\n"
+                    md += "```doc\n" + con.doc + "\n```\n\n"
+                }
+                */
+                if (con.api_type === "api" && con.resp_md != "") {
+                    md += "### 响应结果" + "\n\n"
+                    md += con.resp_md + "\n\n"
+                }
+                return md
+            },
+            downloadDoc() {
+                let md = ""
+                this.treeDataNew.forEach((t, index) => {
+                    md += "# " + t.full_name + "\n\n"
+                    this.treeData[t.full_name]["children"].forEach((con, index) => {
+                        md += "## " + con.name
+                        if (con.name_extra != "") {
+                            md += "(" + con.name_extra + ")"
+                        }
+                        md += "\n\n"
+                        md = this.make_md(md, con)
+                        md += con.doc_md + "\n\n\n"
+                    })
+                    md += "\n\n"
+                })
+                saveAs(new Blob([md], { type: "text/markdown;charset=utf-8" }), this.title + " (" + this.version + ")" + ".md")
+            },
+            treeFilterNode(value, data) {
+                if (!value) return true
+                let srcStr = data.full_name.toLowerCase()
+                let desStr = value.toLowerCase()
+                return srcStr.indexOf(desStr) !== -1
+            },
+            treeNodeClick(data) {
+                if (data.router != null) {
+                    let md = ""
+                    this.treeData[data.router]["children"].forEach((con, index) => {
+                        if (con.name == data.name) {
+                            md += "# " + data.full_name + "\n\n"
+                            md = this.make_md(md, con)
+                            md += con.doc_md
+                        }
+                    })
+                    document.getElementById("md").innerHTML = marked(md)
+                    document.querySelectorAll("pre code").forEach((block) => {
+                        hljs.highlightElement(block)
+                    })
+                    this.dropAnchor(data.id)
+                }
+            },
+            debugShow() {
+                if (this.debugDisplay === "display:none") {
+                    this.debugShowIcon = "el-icon-document"
+                    this.debugDisplay = "display:block"
+                    this.docDisplay = "display:none"
+                    this.setCache("cache:page", "debugger")
+                }
+                else {
+                    this.debugShowIcon = "el-icon-picture-outline-round"
+                    this.debugDisplay = "display:none"
+                    this.docDisplay = "display:block"
+                    this.setCache("cache:page", "document")
+                }
+            },
+            makeMethodOptions() {
+                this.methodList.forEach((m, index) => {
+                    this.methodOptions.push({ value: m, label: m })
+                })
+            },
+            makeUrlOptions(dataDict) {
+                let urlOptionsNew = new Array()
+                for (key in dataDict) {
+                    dataDict[key]["children"].forEach((con, index) => {
+                        let urls = new Array()
+                        urls = con.url.split(" ")
+                        if (urls.length == 1) {
+                            urls = [urls[0].split("\t")[0]]
+                        }
+                        for (i = 0; i < urls.length; i++) {
+                            let url = urls[i].split("\t")[0]
+                            if (!urlOptionsNew.some(item => {
+                                if (item.label == url) {
+                                    return true
+                                }
+                            })) {
+                                urlOptionsNew.push({ value: url, label: url })
+                            }
+
+                        }
+                    })
+                }
+                this.urlOptions = urlOptionsNew
+            },
+            addHeader() {
+                let headerNameInputNew = this.headerNameInput.trim()
+                let headerValueInputNew = this.headerValueInput.trim()
+                if ((headerNameInputNew !== "") && (headerValueInputNew !== "")) {
+                    if (headerNameInputNew.toLowerCase() === "content-type") {
+                        headerNameInputNew = headerNameInputNew.toLowerCase()
+                        headerValueInputNew = headerValueInputNew.toLowerCase()
+                    }
+                    type = Math.floor(Math.random() * 5)
+                    this.headerTags.push({
+                        name: [headerNameInputNew, headerValueInputNew].join(":"),
+                        type: this.headerTagsTypeDict[type]
+                    })
+                    this.setCache("cache:header", this.headerTags)
+                }
+            },
+            delHeader(tag) {
+                this.headerTags.splice(this.headerTags.indexOf(tag), 1)
+                this.setCache("cache:header", this.headerTags)
+            },
+            makeHljsPreCode(id, text) {
+                document.getElementById(id).innerHTML = "<pre><code>" + text + "</code></pre>"
+            },
+            makeResponse(res) {
+                resStatus = [res.status, res.statusText].join(" ")
+                resHeaders = res.headers
+                resData = res.data
+                let resHeadersdict = Object.assign({ "status code": resStatus }, resHeaders)
+
+                this.makeHljsPreCode("responseHeaderText", JSON.stringify(resHeadersdict, null, 4))
+                if (resHeaders["content-type"] && resHeaders["content-type"].indexOf("application/json") != -1) {
+                    this.makeHljsPreCode("responseContentText", JSON.stringify(resData))
+                    this.makeHljsPreCode("responsePreviewText", JSON.stringify(resData, null, 4))
+                }
+                else if (resHeaders["content-type"] && resHeaders["content-type"].indexOf("text/html") != -1) {
+                    document.getElementById("responseContentText").innerHTML = "<code>" + resData + "</code>"
+                    document.getElementById("responsePreviewText").innerHTML = "<code>" + resData + "</code>"
+                }
+                else {
+                    this.makeHljsPreCode("responseContentText", resData)
+                    this.makeHljsPreCode("responsePreviewText", resData)
+                }
+                document.querySelectorAll("pre code").forEach((block) => {
+                    hljs.highlightElement(block)
+                })
+            },
+            sendRequest() {
+                if ((this.hostValue === "") || (this.urlValue === "")) {
+                    return
+                }
+                this.loading = true
+                headers = {}
+                this.headerTags.forEach((item, index) => {
+                    headerTag = item.name.split(":")
+                    headers[headerTag[0]] = headerTag[1]
+                })
+
+                data = ""
+                params = {}
+                if (this.bodyTextarea !== "") {
+                    if (this.methodValue === "GET" || this.methodValue === "DELETE") {
+                        this.bodyTextarea.split("&").forEach((item, index) => {
+                            params[item.split("=")[0]] = item.split("=")[1]
+                        })
+                    }
+                    else {
+                        if (!headers["content-type"] || (headers["content-type"] &&
+                            (headers["content-type"].indexOf("application/x-www-form-urlencoded") === -1 &&
+                                headers["content-type"].indexOf("multipart/form-data") === -1 &&
+                                headers["content-type"].indexOf("text/plain") === -1))) {
+                            try {
+                                data = JSON.parse(this.bodyTextarea)
+                            }
+                            catch (err) {
+                                data = this.bodyTextarea
+                                this.$notify.error({
+                                    title: this.$t("Error"),
+                                    message: this.$t("The request body is not json")
+                                })
+                            }
+                        }
+                        else {
+                            data = this.bodyTextarea
+                        }
+                    }
+                }
+                this.setBodyCache()
+
+                document.getElementById("responseHeaderText").innerHTML = ""
+                document.getElementById("responsePreviewText").innerHTML = ""
+                document.getElementById("responseContentText").innerHTML = ""
+                axios({
+                    method: this.methodValue,
+                    url: this.hostValue + this.urlValue,
+                    timeout: 1000 * 30,
+                    headers: headers,
+                    data: data,
+                    params: params
+                }).then(res => {
+                    this.makeResponse(res)
+                    this.$notify({
+                        title: this.$t("Success"),
+                        type: "success"
+                    })
+                    this.loading = false
+                },
+                    err => {
+                        if (err.response) {
+                            errResponse = err.response
+                            this.makeResponse(errResponse)
+                            this.$notify({
+                                title: this.$t("Warning"),
+                                type: "warning"
+                            })
+                            this.loading = false
+                            return
+                        } else if (err.request) {
+                            console.log(err.request)
+                            document.getElementById("responseContentText").innerHTML = err.request
+                        } else {
+                            console.log("Error", err.message)
+                            document.getElementById("responseContentText").innerHTML = err.message
+                        }
+                        document.querySelectorAll("pre code").forEach((block) => {
+                            hljs.highlightElement(block)
+                        })
+                        this.responseTabsActiveName = "Response"
+                        this.$notify.error({
+                            title: this.$t("Error"),
+                        })
+                        this.loading = false
+                    }
+                )
+            },
+            setCache(k, v) {
+                try {
+                    localStorage.setItem(k, JSON.stringify(v))
+                }
+                catch (err) {
+                    localStorage.setItem(k, v)
+                }
+            },
+            getCache(k) {
+                try {
+                    cacheValue = JSON.parse(localStorage.getItem(k))
+                }
+                catch (err) {
+                    cacheValue = localStorage.getItem(k)
+                }
+                return cacheValue
+            },
+            setBodyCache() {
+                bodyKey = "cache:body:" + CryptoJS.SHA1([this.urlValue, this.methodValue].join("-")).toString()
+                this.setCache(bodyKey, this.bodyTextarea)
+            },
+            getHostCache() {
+                let hostCacheOptions = this.getCache("cache:host")
+                if (hostCacheOptions) {
+                    this.hostOptions = hostCacheOptions
+                }
+            },
+            getUrlCache() {
+                let urlCacheOptions = this.getCache("cache:url")
+                if (urlCacheOptions) {
+                    urlCacheOptions.forEach((item, index) => {
+                        this.changeOptions("urlOptions", "urlOptionsBak", item.label)
+                    })
+                }
+            },
+            getHeaderCache() {
+                let headerCacheTags = this.getCache("cache:header")
+                if (headerCacheTags) {
+                    this.headerTags = headerCacheTags
+                }
+            },
+            getBodyCache() {
+                if (this.urlValue === "") {
+                    return
+                }
+                bodyKey = "cache:body:" + CryptoJS.SHA1([this.urlValue, this.methodValue].join("-")).toString()
+                let bodyCacheTextarea = this.getCache(bodyKey)
+                if (bodyCacheTextarea) {
+                    this.bodyTextarea = bodyCacheTextarea
+                }
+            },
+            pageShow() {
+                let pageCache = this.getCache("cache:page")
+                if (pageCache && pageCache === "debugger") {
+                    this.debugShow()
+                }
+            },
+            copyResponse() {
+                let text = document.getElementById(this.responseTabsActiveDict[this.responseTabsActiveName]).innerText
+                let input = document.createElement("textarea")
+                document.body.appendChild(input)
+                input.value = text
+                input.select()
+                if (document.execCommand("copy")) {
+                    this.$message({
+                        message: this.$t("Copied"),
+                        type: "success"
+                    })
+                }
+                document.body.removeChild(input)
+            },
+            dropAnchor(anchor) {
+                let currentUrl = window.location.href
+                let hostUrl = currentUrl.split("#")[0]
+                history.pushState("", "", hostUrl + "#" + anchor)
+            },
+            jumpAnchor() {
+                this.$nextTick(function () {
+                    try {
+                        let currentUrl = decodeURI(window.location.href)
+                        let anchor = currentUrl.split("#")[1]
+                        let anchorParent = anchor.split("-")[0]
+                        this.$refs.apiTree.store.nodesMap[anchorParent].expanded = true
+                        this.$refs.apiTree.setCurrentKey(anchor)
+                        let node = this.$refs.apiTree.getNode(anchor)
+                        this.treeNodeClick(node.data)
+                    }
+                    catch (err) {
+                    }
+                })
+            },
+            getAuthCache() {
+                let authCache = this.getCache("cache:auth")
+                if (authCache) {
+                    this.authPasswordSHA2 = authCache
+                }
+            },
+            authShow() {
+                this.authDisplay = "display:block"
+                this.mainDisplay = "display:none"
+                this.$nextTick(function () {
+                    this.$refs.passwordInput.focus()
+                })
+            },
+            mainShow() {
+                this.authDisplay = "display:none"
+                this.mainDisplay = "display:block"
+            },
+            verifyAuth() {
+                let authPassword = this.authPassword.trim()
+                if (authPassword === "") {
+                    return
+                }
+                this.authPasswordSHA2 = CryptoJS.SHA256(authPassword).toString()
+                this.getData()
+            },
+            lock() {
+                localStorage.removeItem("cache:auth")
+                this.authPasswordSHA2 = ""
+                this.authPassword = ""
+                this.getData()
+            },
+            createFilter(queryString) {
+                return (options) => {
+                    return (options.value.toLowerCase().indexOf(queryString.toLowerCase()) !== -1)
+                }
+            },
+            hostQuerySearch(queryString, cb) {
+                let options = this.hostOptions;
+                let results = queryString ? options.filter(this.createFilter(queryString)) : options
+                cb(results);
+            },
+            urlQuerySearch(queryString, cb) {
+                let options = this.urlOptions;
+                let results = queryString ? options.filter(this.createFilter(queryString)) : options
+                cb(results);
+            },
+            changeOptions(options, optionsBak, val, isClear) {
+                if (val === "" && isClear == null) {
+                    return
+                }
+                val = val.trim()
+                if (!val) {
+                    let optionsNew = new Array()
+                    this[options].forEach((item, index) => {
+                        if (item.label !== this[optionsBak]) {
+                            optionsNew.push({ value: item.value, label: item.label })
+                        }
+                    })
+                    this[options] = optionsNew
+                    return
+                }
+                this[optionsBak] = val
+                if (!this[options].some(item => {
+                    if (item.label == val) {
+                        return true
+                    }
+                })) {
+                    this[options].push({ value: val, label: val })
+                }
+            },
+            refreshOptions(type, val, isClear) {
+                let options = type + "Options"
+                let optionsBak = type + "ValueBak"
+                let cache = "cache:" + type
+                this.changeOptions(options, optionsBak, val, isClear)
+                this.setCache(cache, this[options])
+                this.getBodyCache()
+            },
+            hostChanged(val) {
+                if (!this.optionsLocked) {
+                    this.refreshOptions("host", val)
+                }
+            },
+            urlChanged(val) {
+                if (!this.optionsLocked) {
+                    this.refreshOptions("url", val)
+                }
+            },
+            clearHostOptions(val) {
+                this.optionsLocked = true
+                this.hostValueBak = val
+                this.refreshOptions("host", "", true)
+                this.optionsLocked = false
+            },
+            clearUrlOptions(val) {
+                this.optionsLocked = true
+                this.urlValueBak = val
+                this.refreshOptions("url", "", true)
+                this.optionsLocked = false
+            },
+            exportTestData() {
+                testData = {}
+                for (key in localStorage) {
+                    if (key.indexOf("cache:body") !== -1) {
+                        testData[key] = localStorage.getItem(key)
+                    }
+                }
+                saveAs(new Blob([JSON.stringify(testData, null, 4)], { type: "text/json;charset=utf-8" }), this.title + " (" + this.version + ")" + "_test_data.json")
+            },
+            importTestData(file) {
+                let reader = new FileReader()
+                reader.readAsText(file.raw)
+                reader.onload = (e) => {
+                    testData = JSON.parse(e.target.result)
+                    for (key in testData) {
+                        if (key.indexOf("cache:body") !== -1) {
+                            localStorage.setItem(key, testData[key])
+                        }
+                    }
+                }
+                this.$message({
+                    message: this.$t("Uploaded"),
+                    type: "success"
+                })
+            },
+            importTestDataBf(file) {
+                return false
+            },
+            formatBody() {
+                try {
+                    this.bodyTextarea = JSON.stringify(JSON.parse(this.bodyTextarea), null, 4)
+                }
+                catch (err) {
+                    this.$notify.error({
+                        title: this.$t("Error"),
+                        message: this.$t("The request body is not json")
+                    })
+                }
+            }
+        },
+        computed: {
+            treeDataNew() {
+                let treeDataNew = new Array()
+                for (key in this.treeData) {
+                    let childrenData = new Array()
+                    this.treeData[key]["children"].forEach((con, index) => {
+                        let id = con.router + "-" + con.name
+                        if (con.name_extra == "") {
+                            childrenData.push({ "id": id, "full_name": con.name, "name": con.name, "router": con.router })
+                        }
+                        else {
+                            childrenData.push({ "id": id, "full_name": con.name + "(" + con.name_extra + ")", "name": con.name, "router": con.router })
+                        }
+                    })
+                    treeDataNew.push({ "id": key, "full_name": key, "children": childrenData })
+                }
+                return treeDataNew
+            }
+        },
+        watch: {
+            treeFilterText(val) {
+                this.$refs.apiTree.filter(val)
+            },
+            methodValue(val) {
+                this.getBodyCache()
+            },
+            hostValue(val) {
+                if (this.hostValueBak === "") {
+                    this.refreshOptions("host", val)
+                }
+                else {
+                    this.getBodyCache()
+                }
+            },
+            urlValue(val) {
+                this.getBodyCache()
+            }
+        }
+    })
+</script>
+
+<style>
+    @media screen and (min-width: 914px) {
+        body {
+            width: 96%;
+            margin: 10px auto;
+        }
+    }
+
+    /* Webkit */
+    ::-webkit-scrollbar {
+        background: #f7f7f9;
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #e5e5e5;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #bababa
+    }
+
+    /* Firefox */
+    * {
+        scrollbar-color: #e5e5e5 #f7f7f9;
+        scrollbar-width: thin;
+    }
+
+    .el-button+.el-button {
+        margin-left: 0px;
+    }
+
+    .download,
+    .upload,
+    .debug,
+    .lock {
+        padding-top: 25px;
+        padding-right: 20px;
+        font-size: 20px;
+        float: right;
+    }
+
+    .upload {
+        padding-top: 23px;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 85%;
+        line-height: 1.45;
+        background-color: #f6f8fa;
+    }
+
+    @-moz-document url-prefix() {
+        pre {
+            margin-top: 12px
+        }
+    }
+
+    code,
+    textarea {
+        font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+    }
+
+    .project-name-version {
+        float: right;
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #e5e5e5;
+        text-decoration: none;
+    }
+
+    .project-name {
+        color: #303133;
+        text-decoration: none;
+    }
+
+    .copyResponse {
+        margin-top: 54px;
+        padding-left: 6px;
+        padding-right: 20px;
+        font-size: 20px;
+        float: right;
+    }
+
+    .auth {
+        position: fixed;
+        left: 50%;
+        top: 42%;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }
+
+    .auth-box-card {
+        max-width: 580px;
+    }
+
+    .formatBody {
+        font-size: 20px;
+        position: absolute;
+        z-index: 100;
+        right: 20px;
+    }
+</style>
+
+</html>
