@@ -49,7 +49,7 @@ func Init(c *Config) {
 
 // AddStruct 注册结构体
 func AddStruct(typeName string, v interface{}) {
-	if !IsStruct(v) {
+	if !config.EnableDoc || !IsStruct(v) {
 		return
 	}
 	registeredTypes[typeName] = v
@@ -57,7 +57,7 @@ func AddStruct(typeName string, v interface{}) {
 
 // AddStructs 批量注册结构体信息
 func AddStructs(strcutMaps map[string]interface{}) {
-	if len(strcutMaps) == 0 {
+	if !config.EnableDoc || len(strcutMaps) == 0 {
 		return
 	}
 	for name, structV := range strcutMaps {
@@ -67,6 +67,9 @@ func AddStructs(strcutMaps map[string]interface{}) {
 
 // NewDoc 添加api文档信息
 func NewDoc(keyvals ...interface{}) {
+	if !config.EnableDoc {
+		return
+	}
 	size := len(keyvals)
 	if size == 0 {
 		return
@@ -84,6 +87,9 @@ func NewDoc(keyvals ...interface{}) {
 
 // Register 注册文档路由
 func Register(r *gin.Engine, middlewares ...gin.HandlerFunc) (err error) {
+	if !config.EnableDoc {
+		return nil
+	}
 	if err := initTemplates(); err != nil {
 		return err
 	}
