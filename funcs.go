@@ -1,4 +1,4 @@
-package apidoc
+package ginxdoc
 
 import (
 	"crypto/md5"

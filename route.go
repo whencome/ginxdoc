@@ -1,4 +1,4 @@
-package apidoc
+package ginxdoc
 
 import (
 	"net/http"
@@ -66,49 +66,6 @@ func verifyPassword(passwordSha2 string) gin.HandlerFunc {
 			c.Abort()
 		}
 	}
-}
-
-// Register 注册文档路由
-func Register(r *gin.Engine, middlewares ...gin.HandlerFunc) (err error) {
-	if err := initTemplates(); err != nil {
-		return err
-	}
-
-	dataMap := apiDocs.ToApiData()
-
-	g0 := r.Group("")
-	g0.Use(middlewares...)
-
-	g0.Static(config.UrlPrefix+"/static", filepath.Join(rootPath, "static"))
-
-	g0.GET(config.UrlPrefix+"/", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, renderHtml())
-	})
-
-	g0.GET(config.UrlPrefix+"/data",
-		verifyPassword(config.PasswordSha2),
-		func(c *gin.Context) {
-			urlPrefix := config.UrlPrefix
-			referer := c.Request.Header.Get("referer")
-			if referer == "" {
-				referer = "http://127.0.0.1"
-			}
-			host := strings.Split(referer, urlPrefix)[0]
-
-			c.JSON(http.StatusOK, gin.H{
-				"PROJECT_NAME":    PROJECT_NAME,
-				"PROJECT_VERSION": PROJECT_VERSION,
-				"host":            host,
-				"title":           config.Title,
-				"version":         config.Version,
-				"description":     config.Description,
-				"noDocText":       config.NoDocText,
-				"data":            dataMap,
-			})
-		})
-
-	return
 }
 
 func readTemplate(rp string) error {

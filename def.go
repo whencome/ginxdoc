@@ -1,4 +1,4 @@
-package apidoc
+package ginxdoc
 
 import (
 	"fmt"
@@ -84,8 +84,8 @@ type ApiReqParam struct {
 	Description string
 }
 
-// ApiDocInfo 接口方法信息
-type ApiDocInfo struct {
+// DocInfo 接口方法信息
+type DocInfo struct {
 	Hash        string        `json:"hash"`        // 接口hash值，用于防重
 	Name        string        `json:"name"`        // 接口方法名称
 	Description string        `json:"description"` // 接口描
@@ -99,7 +99,7 @@ type ApiDocInfo struct {
 	DocMD       string        `json:"content_md"`  // 接口文档扩展内容，markdown内容
 }
 
-func (doc *ApiDocInfo) ApiMap() KVMap {
+func (doc *DocInfo) ApiMap() KVMap {
 	return KVMap{
 		"api_type":    "api",
 		"doc":         "",
@@ -118,11 +118,11 @@ func (doc *ApiDocInfo) ApiMap() KVMap {
 
 // DocGroup 文档分组
 type DocGroup struct {
-	Name        string        `json:"name"`        // 分组名称
-	Description string        `json:"description"` // 分组描述
-	Sort        int           `json:"sort"`        // 用于控制文档排序
-	Groups      []*DocGroup   `json:"groups"`      // 子分组
-	Docs        []*ApiDocInfo `json:"docs"`        // 文档列表
+	Name        string      `json:"name"`        // 分组名称
+	Description string      `json:"description"` // 分组描述
+	Sort        int         `json:"sort"`        // 用于控制文档排序
+	Groups      []*DocGroup `json:"groups"`      // 子分组
+	Docs        []*DocInfo  `json:"docs"`        // 文档列表
 }
 
 // ToApiData 将文档分组转换为api数据
@@ -132,7 +132,7 @@ func (dg DocGroup) ToApiData() DataMap {
 	noGroup := &DocGroup{
 		Name:   "未分组",
 		Sort:   1,
-		Docs:   make([]*ApiDocInfo, 0),
+		Docs:   make([]*DocInfo, 0),
 		Groups: make([]*DocGroup, 0),
 	}
 	if len(dg.Docs) > 0 {

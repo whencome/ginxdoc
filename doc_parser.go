@@ -1,4 +1,4 @@
-package apidoc
+package ginxdoc
 
 import (
 	"bytes"
@@ -19,8 +19,8 @@ func NewDocParser() *DocParser {
 }
 
 // ParseDocPairs 根据文档键值对解析文档信息
-func (p *DocParser) ParseDocPairs(keyvals ...interface{}) *ApiDocInfo {
-	apiDoc := &ApiDocInfo{}
+func (p *DocParser) ParseDocPairs(keyvals ...interface{}) *DocInfo {
+	apiDoc := &DocInfo{}
 	size := len(keyvals)
 	var request, response interface{}
 	for i := 0; i < size; i += 2 {
@@ -92,8 +92,8 @@ func (p *DocParser) ParseDocPairs(keyvals ...interface{}) *ApiDocInfo {
 }
 
 // ParseDocString 根据文档字符串解析文档信息
-func (p *DocParser) ParseDocString(doc string) *ApiDocInfo {
-	apiDoc := &ApiDocInfo{}
+func (p *DocParser) ParseDocString(doc string) *DocInfo {
+	apiDoc := &DocInfo{}
 	// 解析接口文档
 	lines := strings.Split(doc, "\n")
 	openMarkdown := false
@@ -188,7 +188,7 @@ func (p *DocParser) ParseDocString(doc string) *ApiDocInfo {
 }
 
 // parseRequestInfo 解析请求信息
-func (p *DocParser) parseRequestInfo(doc *ApiDocInfo, request interface{}) {
+func (p *DocParser) parseRequestInfo(doc *DocInfo, request interface{}) {
 	var req RequestInfo
 	if IsStruct(request) { // 如果直接传入的结构体，则直接解析
 		req = p.ParseRequest(request)
