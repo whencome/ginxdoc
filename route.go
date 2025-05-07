@@ -1,19 +1,19 @@
 package ginxdoc
 
 import (
-    "net/http"
-    "os"
-    "path/filepath"
-    "reflect"
-    "runtime"
-    "strings"
+	"net/http"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
 
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 const (
-    PROJECT_NAME    = "Ginx Docs"
-    PROJECT_VERSION = Version
+	PROJECT_NAME    = "Ginx Docs"
+	PROJECT_VERSION = Version
 )
 
 type KVMap map[string]string
@@ -29,60 +29,60 @@ type DataMap map[string]RouterMap
 var rootPath string
 
 var templateMap = KVMap{
-    "index":              "",
-    "css_template_cdn":   "",
-    "css_template_local": "",
-    "js_template_cdn":    "",
-    "js_template_local":  "",
+	"index":              "",
+	"css_template_cdn":   "",
+	"css_template_local": "",
+	"js_template_cdn":    "",
+	"js_template_local":  "",
 }
 
 func initTemplates() error {
-    rootPath = getRootPath()
-    if err := readTemplate(rootPath); err != nil {
-        return err
-    }
-    return nil
+	rootPath = getRootPath()
+	if err := readTemplate(rootPath); err != nil {
+		return err
+	}
+	return nil
 }
 
 func rootPathFunc() {}
 func getRootPath() string {
-    funcValue := reflect.ValueOf(rootPathFunc)
-    fn := runtime.FuncForPC(funcValue.Pointer())
-    filePath, _ := fn.FileLine(0)
-    rp := filepath.Dir(filePath)
+	funcValue := reflect.ValueOf(rootPathFunc)
+	fn := runtime.FuncForPC(funcValue.Pointer())
+	filePath, _ := fn.FileLine(0)
+	rp := filepath.Dir(filePath)
 
-    return rp
+	return rp
 }
 
 func verifyPassword(passwordSha2 string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        authPasswordSha2 := c.Request.Header.Get("Auth-Password-SHA2")
-        if passwordSha2 != "" && passwordSha2 != authPasswordSha2 {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-            c.Abort()
-        }
-    }
+	return func(c *gin.Context) {
+		authPasswordSha2 := c.Request.Header.Get("Auth-Password-SHA2")
+		if passwordSha2 != "" && passwordSha2 != authPasswordSha2 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+		}
+	}
 }
 
 func readTemplate(rp string) error {
-    templatesPath := filepath.Join(rp, "templates")
-    for k := range templateMap {
-        tByte, err := os.ReadFile(
-            filepath.Join(templatesPath, k+".html"),
-        )
-        if err != nil {
-            return err
-        }
-        templateMap[k] = string(tByte)
-    }
-    return nil
+	templatesPath := filepath.Join(rp, "templates")
+	for k := range templateMap {
+		tByte, err := os.ReadFile(
+			filepath.Join(templatesPath, k+".html"),
+		)
+		if err != nil {
+			return err
+		}
+		templateMap[k] = string(tByte)
+	}
+	return nil
 }
 
 func renderHtml() string {
-    htmlStr := templateMap["index"]
-    return strings.Replace(
-        strings.Replace(
-            htmlStr, "<!-- ___CSS_TEMPLATE___ -->", templateMap["css_template_local"], -1,
-        ), "<!-- ___JS_TEMPLATE___ -->", templateMap["js_template_local"], -1,
-    )
+	htmlStr := templateMap["index"]
+	return strings.Replace(
+		strings.Replace(
+			htmlStr, "<!-- ___CSS_TEMPLATE___ -->", templateMap["css_template_local"], -1,
+		), "<!-- ___JS_TEMPLATE___ -->", templateMap["js_template_local"], -1,
+	)
 }

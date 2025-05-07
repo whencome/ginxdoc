@@ -19,6 +19,12 @@ var docMaps map[string]*DocInfo
 // 保存全局注册的结构体
 var registeredTypes = make(map[string]interface{})
 
+// 响应包装函数，用于组成完整的响应数据，此方法用于成功的响应数据
+var responseWrapperFunc func(interface{}) interface{}
+
+// 全局文档markdown内容，此内容将附加到每个文档的末尾
+var globalDocMD string
+
 // 初始化全局对象
 func init() {
 	config = DefaultConfig()
@@ -30,6 +36,13 @@ func init() {
 		Docs:        make([]*DocInfo, 0),  // 文档列表
 	}
 	docMaps = make(map[string]*DocInfo)
+	responseWrapperFunc = func(v interface{}) interface{} {
+		return map[string]interface{}{
+			"code":    0,
+			"message": "ok",
+			"data":    v,
+		}
+	}
 	Init(config)
 }
 

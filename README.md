@@ -42,9 +42,9 @@ func (h *DemoHandler) RegisterRoute(g *gin.RouterGroup) {
 * **@Summary** 接口的简单说明，可以理解为接口的名称
 * **@Description** 接口的文本说明，可以添加较为详细的介绍，此内容为纯文本信息
 * **@Produce** 响应的内容类型，如json、xml等，最终将转换为MIME类型
-* **@Param** 定义请求参数信息，格式为：@Param 字段名 类型 是否必填 参数说明
-* **@Response** 响应内容，这里是可以是对应结构体实例（空实例），也可以是注册的结构体名称。如果是结构体名称，应当在注册路由之前调用ginxdoc.AddStructs或ginxdoc.AddStruct进行注册，具体参考代码。需要说明的是，这里的结构体名称不是定义的名称，而是注册时指定的字符串名称
-* **Request** 请求的结构体信息，可以是结构体实例也可以是注册的结构体名称，与@Response相同
+* **@Param** 定义请求参数信息，格式为：“@Param 字段名 类型 是否必填 参数说明”，一个文档可以有多个@Param，如果@Param和@Request同时存在，则@Param优先级高
+* **@Response** 响应内容，这里是可以是对应结构体实例（空实例），也可以是响应结果文本说明，格式为：“@Response name type desc”，一个文档只支持一个@Response说明
+* **@Request** 请求的结构体实例（空实例），一个文档只支持一个@Request说明
 * **@Markdown** 此标签表明对应的值是markdown格式，此markdown内容将附加到文档末尾，可以有多个@Markdown内容，但markdown内容将按照添加的顺序依次添加到文档中
 * **@Router** 注册的路由以及请求方式
 
@@ -52,3 +52,31 @@ func (h *DemoHandler) RegisterRoute(g *gin.RouterGroup) {
 
 * ginxdoc会使用字段的“desc”tag中的内容作为字段说明；
 * 显示字段暂时为写死内容，如果时请求参数，则解析“form”tag内容作为显示字段，其它则取"json" tag内容作为显示字段
+
+## 统一返回值格式
+
+通常，接口文档中只是定义了接口的实际返回值（ginx中），再返回到客户端前会做一层封装，包括是否成功、消息提示等。可以使用**SetResponseWrapFunc**方法来注册一个方法，用于对返回值进行封装。如：
+```go
+ginxdoc.SetResponseWrapFunc(func(v interface{}) interface{} {
+		return map[string]interface{}{
+			"code":    0,
+			"message": "ok",
+			"data":    v,
+		}
+	})
+```
+如果不需要对返回结果进行包装，则可以使用**ginxdoc.SetResponseWrapFunc(nil)**来实现。
+
+## 添加全局文档说明
+
+如果需要为每个文档加上相同的说明内容，则可以使用“SetGlobalDocMD”来实现，如：
+```go
+	ginxdoc.SetGlobalDocMD(`
+### 返回值说明
+
+- **code**: 响应码，0-成功，其它-失败
+- **message**: 响应结果消息，如果code表示失败，这里是失败提示
+- **data**: 响应数据，只有code表示成功时，才取data字段值
+
+    `)
+```

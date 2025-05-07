@@ -5,10 +5,6 @@ import (
 	"encoding/hex"
 	"io"
 	"reflect"
-
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
 )
 
 // MIMEMaps 定义mime映射关系
@@ -37,21 +33,6 @@ var MIMEMaps = map[string]string{
 	"7z":   "application/x-7z-compressed",                                             // 7-Zip压缩（.7z）
 }
 
-// Markdown2Html
-func Markdown2Html(md string) string {
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(extensions)
-	doc := p.Parse([]byte(md))
-
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{
-		Flags: htmlFlags,
-	}
-	renderer := html.NewRenderer(opts)
-
-	return string(markdown.Render(doc, renderer))
-}
-
 // GetMIMEType 获取mime类型
 func GetMIMEType(contentType string) string {
 	if mimetype, ok := MIMEMaps[contentType]; ok {
@@ -63,7 +44,7 @@ func GetMIMEType(contentType string) string {
 // Md5 生成md5 hash
 func Md5(str string) string {
 	h := md5.New()
-	io.WriteString(h, str)
+	_, _ = io.WriteString(h, str)
 	cipherStr := h.Sum(nil)
 	return hex.EncodeToString(cipherStr)
 }
@@ -128,28 +109,26 @@ func IsList(i interface{}) bool {
 	return false
 }
 
-// 初始化结构体中的切片/数组字段（补充默认值元素）
-func initSliceOrArrayField(structPtr interface{}, fieldName string) {
-	v := reflect.ValueOf(structPtr).Elem()
-	field := v.FieldByName(fieldName)
+// GetListStructItem 获取列表结构体元素
+func GetListStructItem(i interface{}) interface{} {
+	val := reflect.ValueOf(i)
 
-	switch field.Kind() {
-	case reflect.Slice:
-		if field.IsNil() {
-			// 创建切片并添加一个默认值元素
-			sliceType := field.Type()
-			elemType := sliceType.Elem()
-			newSlice := reflect.MakeSlice(sliceType, 1, 1)      // 创建长度和容量为1的切片
-			newSlice.Index(0).Set(createDefaultValue(elemType)) // 设置默认值
-			field.Set(newSlice)
-		}
-	case reflect.Array:
-		// 数组始终非nil，直接设置第一个元素
-		elemType := field.Type().Elem()
-		if field.Index(0).IsZero() { // 检查是否未初始化
-			field.Index(0).Set(createDefaultValue(elemType))
-		}
+	// 检查是否是切片或数组
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		return nil
 	}
+
+	// 检查元素类型
+	elemType := val.Type().Elem()
+
+	// 如果元素是结构体
+	if elemType.Kind() == reflect.Struct {
+		// 创建该结构体的新实例
+		return reflect.New(elemType).Interface()
+	}
+
+	// 元素不是结构体
+	return nil
 }
 
 // 创建类型的默认值

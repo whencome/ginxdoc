@@ -86,17 +86,19 @@ type ApiReqParam struct {
 
 // DocInfo 接口方法信息
 type DocInfo struct {
-	Hash        string        `json:"hash"`        // 接口hash值，用于防重
-	Name        string        `json:"name"`        // 接口方法名称
-	Description string        `json:"description"` // 接口描
-	MIME        string        `json:"mime"`        // 响应的MIME类型
-	Path        string        `json:"path"`        // 接口路径
-	Method      string        `json:"method"`      // 请求方法，POST,GET,等
-	Group       string        `json:"group"`       // 文档分组
-	Params      []ApiReqParam `params`             // 请求参数列表
-	ParamMD     string        `json:"param_md"`    // 请求参数, markdown内容
-	RespMD      string        `json:"resp_md"`     // 响应结果，markdown内容
-	DocMD       string        `json:"content_md"`  // 接口文档扩展内容，markdown内容
+	Hash         string        `json:"hash"`        // 接口hash值，用于防重
+	Name         string        `json:"name"`        // 接口方法名称
+	Description  string        `json:"description"` // 接口描
+	Produce      string        `json:"produce"`
+	MIME         string        `json:"mime"`          // 响应的MIME类型
+	Path         string        `json:"path"`          // 接口路径
+	Method       string        `json:"method"`        // 请求方法，POST,GET,等
+	Group        string        `json:"group"`         // 文档分组
+	Params       []ApiReqParam `params`               // 请求参数列表
+	ParamMD      string        `json:"param_md"`      // 请求参数, markdown内容
+	WrapResponse string        `json:"wrap_response"` // 是否包装响应结果,取值：on,off
+	RespMD       string        `json:"resp_md"`       // 响应结果，markdown内容
+	DocMD        string        `json:"content_md"`    // 接口文档扩展内容，markdown内容
 }
 
 func (doc *DocInfo) ApiMap() KVMap {
