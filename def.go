@@ -94,9 +94,10 @@ type DocInfo struct {
 	Path         string        `json:"path"`          // 接口路径
 	Method       string        `json:"method"`        // 请求方法，POST,GET,等
 	Group        string        `json:"group"`         // 文档分组
-	Params       []ApiReqParam `params`               // 请求参数列表
+	Params       []ApiReqParam `json:"params"`        // 请求参数列表
 	ParamMD      string        `json:"param_md"`      // 请求参数, markdown内容
 	WrapResponse string        `json:"wrap_response"` // 是否包装响应结果,取值：on,off
+	Return       []FieldInfo   `json:"return"`        // 响应内容，优先级高于@Response
 	RespMD       string        `json:"resp_md"`       // 响应结果，markdown内容
 	DocMD        string        `json:"content_md"`    // 接口文档扩展内容，markdown内容
 }

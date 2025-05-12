@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -17,7 +18,10 @@ func NewDocParser() *DocParser {
 
 // ParseDocPairs 根据文档键值对解析文档信息
 func (p *DocParser) ParseDocPairs(keyVals ...interface{}) *DocInfo {
-	apiDoc := &DocInfo{}
+	apiDoc := &DocInfo{
+		Params: make([]ApiReqParam, 0),
+		Return: make([]FieldInfo, 0),
+	}
 	size := len(keyVals)
 	var request, response interface{}
 	for i := 0; i < size; i += 2 {
@@ -64,6 +68,11 @@ func (p *DocParser) ParseDocPairs(keyVals ...interface{}) *DocInfo {
 			request = value
 		case "@Response":
 			response = value
+		case "@Return":
+			returnField, ok := p.parseRespString(value.(string))
+			if ok {
+				apiDoc.Return = append(apiDoc.Return, returnField)
+			}
 		case "@WrapResponse":
 			apiDoc.WrapResponse = strings.TrimSpace(value.(string))
 		}
@@ -77,15 +86,19 @@ func (p *DocParser) ParseDocPairs(keyVals ...interface{}) *DocInfo {
 	}
 
 	// 解析响应结果
-	if structName, ok := response.(string); ok {
-		if structVal, ok := registeredTypes[structName]; ok {
-			apiDoc.RespMD = p.buildRespMD(structVal, apiDoc.WrapResponse)
-		} else {
-			// 将文本内容视为响应结果描述
+	if len(apiDoc.Return) > 0 {
+		apiDoc.RespMD = p.buildRespMDByFields(apiDoc.Return, apiDoc.WrapResponse)
+	} else {
+		if structName, ok := response.(string); ok {
+			if structVal, ok := registeredTypes[structName]; ok {
+				apiDoc.RespMD = p.buildRespMD(structVal, apiDoc.WrapResponse)
+			} else {
+				// 将文本内容视为响应结果描述
+				apiDoc.RespMD = p.buildRespMD(response, apiDoc.WrapResponse)
+			}
+		} else { // 如果直接传入的结构体，则直接解析
 			apiDoc.RespMD = p.buildRespMD(response, apiDoc.WrapResponse)
 		}
-	} else { // 如果直接传入的结构体，则直接解析
-		apiDoc.RespMD = p.buildRespMD(response, apiDoc.WrapResponse)
 	}
 
 	// 附加全局md内容
@@ -177,6 +190,13 @@ func (p *DocParser) ParseDocString(doc string) *DocInfo {
 				apiDoc.WrapResponse = strings.TrimSpace(strings.TrimPrefix(line, "@WrapResponse"))
 				continue
 			}
+			if strings.HasPrefix(line, "@Return") {
+				returnField, ok := p.parseRespString(strings.TrimSpace(strings.TrimPrefix(line, "@Return")))
+				if ok {
+					apiDoc.Return = append(apiDoc.Return, returnField)
+				}
+				continue
+			}
 		}
 	}
 
@@ -186,9 +206,13 @@ func (p *DocParser) ParseDocString(doc string) *DocInfo {
 		p.parseRequestInfo(apiDoc, reqStructName)
 	}
 
-	if respStructName != "" {
-		if structVal, ok := registeredTypes[respStructName]; ok {
-			apiDoc.RespMD = p.buildRespMD(structVal, apiDoc.WrapResponse)
+	if len(apiDoc.Return) > 0 {
+		apiDoc.RespMD = p.buildRespMDByFields(apiDoc.Return, apiDoc.WrapResponse)
+	} else {
+		if respStructName != "" {
+			if structVal, ok := registeredTypes[respStructName]; ok {
+				apiDoc.RespMD = p.buildRespMD(structVal, apiDoc.WrapResponse)
+			}
 		}
 	}
 
@@ -446,22 +470,27 @@ func (p *DocParser) ParseStruct(v interface{}) StructInfo {
 }
 
 // parseParam 解析参数
+// 格式：fieldName type required description
+// 其中，fieldName、type、required 不会包含空格或者（双/单）引号
+// 因此，按空格解析即可，第三个参数之后的全部内容都是描述信息
 func (p *DocParser) parseParam(param string) (ApiReqParam, bool) {
 	reqParam := ApiReqParam{}
-	if strings.ToLower(param) == "none" {
+	param = strings.TrimSpace(param)
+	if strings.Index(param, " ") < 0 {
 		return reqParam, false
 	}
 	chars := []rune(param)
 	pos := 0
-	openQuote := false
 	data := make([]rune, 0)
 	writeData := false
-	for _, char := range chars {
-		if char == '"' {
-			openQuote = !openQuote
-			writeData = true
-		} else if char == ' ' && !openQuote {
-			writeData = true
+	// 上一个不为空的字符索引
+	lastBlankIdx := 0
+	for i, char := range chars {
+		if char == ' ' || char == '\t' {
+			if math.Abs(float64(i-lastBlankIdx)) > 1 {
+				writeData = true
+			}
+			lastBlankIdx = i
 		} else {
 			data = append(data, char)
 		}
@@ -475,10 +504,14 @@ func (p *DocParser) parseParam(param string) (ApiReqParam, bool) {
 			case 2:
 				reqParam.Required = strings.ToLower(string(data)) == "true"
 			case 3:
-				reqParam.Description = string(data)
+				reqParam.Description = strings.TrimSpace(string(data))
 			}
 			data = make([]rune, 0)
 			pos++
+			if pos >= 3 {
+				data = append(data, chars[i:]...)
+				break
+			}
 		}
 	}
 	if len(data) > 0 {
@@ -490,29 +523,33 @@ func (p *DocParser) parseParam(param string) (ApiReqParam, bool) {
 		case 2:
 			reqParam.Required = strings.ToLower(string(data)) == "true"
 		case 3:
-			reqParam.Description = string(data)
+			reqParam.Description = strings.TrimSpace(string(data))
 		}
 	}
 	return reqParam, true
 }
 
 // parseRespString 解析响应结果字符串
+// 格式：fieldName type description
+// 其中：fieldName以及type不应该包含空格或者（双/单）引号，所以按空格解析出前两个，后面的都是描述
 func (p *DocParser) parseRespString(str string) (FieldInfo, bool) {
 	resp := FieldInfo{}
-	if strings.ToLower(str) == "none" {
+	str = strings.TrimSpace(str)
+	if strings.Index(str, " ") < 0 {
 		return resp, false
 	}
 	chars := []rune(str)
 	pos := 0
-	openQuote := false
 	data := make([]rune, 0)
 	writeData := false
-	for _, char := range chars {
-		if char == '"' {
-			openQuote = !openQuote
-			writeData = true
-		} else if char == ' ' && !openQuote {
-			writeData = true
+	// 上一个不为空的字符索引
+	lastBlankIdx := 0
+	for i, char := range chars {
+		if char == ' ' || char == '\t' {
+			if math.Abs(float64(i-lastBlankIdx)) > 1 { // 如果不是相邻的空格，则说明中间含有有效字符
+				writeData = true
+			}
+			lastBlankIdx = i
 		} else {
 			data = append(data, char)
 		}
@@ -524,10 +561,14 @@ func (p *DocParser) parseRespString(str string) (FieldInfo, bool) {
 			case 1:
 				resp.Type = string(data)
 			case 2:
-				resp.Desc = string(data)
+				resp.Desc = strings.TrimSpace(string(data))
 			}
 			data = make([]rune, 0)
 			pos++
+			if pos >= 2 {
+				data = append(data, chars[i:]...)
+				break
+			}
 		}
 	}
 	if len(data) > 0 {
@@ -537,9 +578,10 @@ func (p *DocParser) parseRespString(str string) (FieldInfo, bool) {
 		case 1:
 			resp.Type = string(data)
 		case 2:
-			resp.Desc = string(data)
+			resp.Desc = strings.TrimSpace(string(data))
 		}
 	}
+	resp.Tag = resp.Name
 	resp.IsStruct = false
 	return resp, true
 }
@@ -605,13 +647,79 @@ func (p *DocParser) buildRespMD(resp interface{}, wrap string) string {
 
 // buildStructMDBody 构造结构体markdown内容，主要用于响应结果解析
 func (p *DocParser) buildStructMDBody(obj StructInfo, fieldPrefix string) string {
-	reqParamMD := ""
+	md := ""
 	for _, field := range obj.Fields {
-		reqParamMD += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Type, field.Desc)
+		md += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Type, field.Desc)
 		if field.IsStruct {
-			reqParamMD += p.buildStructMDBody(field.Struct, fieldPrefix+field.Tag+".")
+			md += p.buildStructMDBody(field.Struct, fieldPrefix+field.Tag+".")
 			continue
 		}
 	}
-	return reqParamMD
+	return md
+}
+
+// buildRespMDByFields 根据返回字段构造返回结果markdown内容，用于返回字段解析
+func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string {
+	if len(fields) == 0 {
+		return ""
+	}
+
+	respMD := `
+|参数名|类型|说明|
+|:----|:----|----|
+`
+	for _, field := range fields {
+		respMD += fmt.Sprintf("|%s|%s|%s|\n", field.Tag, field.Type, field.Desc)
+		if field.IsStruct {
+			respMD += p.buildStructMDBody(field.Struct, field.Tag+".")
+			continue
+		}
+	}
+
+	// 添加相应结果示例
+	respDemo := make(map[string]interface{})
+	getDefaultValue := func(t string) interface{} {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "bool" || t == "boolean" {
+			return false
+		}
+		if strings.Contains(t, "int") {
+			return 0
+		}
+		if strings.Contains(t, "float") {
+			return 0.0
+		}
+		return ""
+	}
+	for _, field := range fields {
+		hasDot := strings.Contains(field.Tag, ".")
+		if !hasDot {
+			respDemo[field.Tag] = getDefaultValue(field.Type)
+			continue
+		}
+		mFields := strings.Split(field.Tag, ".")
+		mFieldsCnt := len(mFields)
+		var dst map[string]interface{} = respDemo
+		for i, f := range mFields {
+			if i == mFieldsCnt-1 {
+				dst[f] = getDefaultValue(field.Type)
+				break
+			}
+			if _, ok := dst[f]; !ok {
+				dst[f] = make(map[string]interface{})
+			}
+			dst = dst[f].(map[string]interface{})
+		}
+	}
+
+	var demoResponse interface{} = respDemo
+	if wrap != "off" && responseWrapperFunc != nil {
+		demoResponse = responseWrapperFunc(respDemo)
+	}
+	jsonDemo, err := json.MarshalIndent(demoResponse, "", "    ")
+	if err == nil {
+		respMD += fmt.Sprintf("\n\n**示例**\n\n```json\n%s\n```\n", string(jsonDemo))
+	}
+
+	return respMD
 }

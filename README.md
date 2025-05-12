@@ -6,6 +6,39 @@ ginxdoc是一个专门为ginx框架开发的一个文档工具，虽如此，其
 
 本项目借鉴了[https://github.com/kwkwc/gin-docs](https://github.com/kwkwc/gin-docs)项目，对后端代码进行了部分重写以实现预期的效果。
 
+## 在项目中使用ginxdoc
+
+### 1. 初始化ginxdoc
+
+**注意**：此步骤应当在注册接口路由之前调用。
+
+```go
+config := &ginxdoc.Config{
+    Title:         "接口文档",
+    Version:       "1.0",
+    Description:   "接口文档",
+    UrlPrefix:     "/ginxdocs",
+    EnableDoc:     true,
+    StaticResPath: "/path/to/ginxdoc/static/resources",
+    // SHA256 encrypted authorization password, e.g. here is admin
+    // echo -n admin | shasum -a 256
+    // `8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918`
+    PasswordSha2: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+}
+ginxdoc.Init(config)
+```
+
+### 2. 注册文档路由
+
+**注意**：此步骤应当在注册接口路由之后调用。
+
+```go
+err := ginxdoc.Register(r)
+if err != nil {
+    log.Errorf("register ginxdoc fail： %s", err)
+}
+```
+
 ## 添加接口文档
 
 * 此处的实例以ginx框架为例，其他框架也可以使用此工具，请自行研究和修改。
@@ -34,6 +67,18 @@ func (h *DemoHandler) RegisterRoute(g *gin.RouterGroup) {
 		"@Router", "/detail [get]",
 	)
 	g.GET("/detail", ginx.NewApiHandler(requests.DetailRequest{}, h.Detail))
+
+    ginxdoc.NewDoc(
+		"@Summary", "获取当前账户信息",
+		"@Description", "获取当前账户信息",
+		"@Tags", "账户管理",
+		"@Produce", "json",
+		"@Return", "id string 账户id",
+		"@Return", "account.balance  float32  账户余额",
+		"@Return", "account.active   bool  是否激活",
+		"@Router", "/account [post]",
+	)
+	g.POST("/account", ginx.NewApiHandler(nil, h.Account))
 }
 ```
 
@@ -43,9 +88,11 @@ func (h *DemoHandler) RegisterRoute(g *gin.RouterGroup) {
 * **@Description** 接口的文本说明，可以添加较为详细的介绍，此内容为纯文本信息
 * **@Produce** 响应的内容类型，如json、xml等，最终将转换为MIME类型
 * **@Param** 定义请求参数信息，格式为：“@Param 字段名 类型 是否必填 参数说明”，一个文档可以有多个@Param，如果@Param和@Request同时存在，则@Param优先级高
+* **@Return** 定义返回字段信息，格式为：“@Return 字段名 类型 字段说明”，一个文档可以有多个@Return，如果@Return和@Response同时存在，则@Return的优先级高（此时忽略@Response）
 * **@Response** 响应内容，这里是可以是对应结构体实例（空实例），也可以是响应结果文本说明，格式为：“@Response name type desc”，一个文档只支持一个@Response说明
 * **@Request** 请求的结构体实例（空实例），一个文档只支持一个@Request说明
 * **@Markdown** 此标签表明对应的值是markdown格式，此markdown内容将附加到文档末尾，可以有多个@Markdown内容，但markdown内容将按照添加的顺序依次添加到文档中
+* **@WrapResponse** 是否包装响应结果，取值为on/off，默认为on，如果为on，则使用ResponseWrapFunc对返回内容进行包装，参考SetResponseWrapFunc方法
 * **@Router** 注册的路由以及请求方式
 
 **关于字段说明**
