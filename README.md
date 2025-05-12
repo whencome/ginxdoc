@@ -19,7 +19,6 @@ config := &ginxdoc.Config{
     Description:   "接口文档",
     UrlPrefix:     "/ginxdocs",
     EnableDoc:     true,
-    StaticResPath: "/path/to/ginxdoc/static/resources",
     // SHA256 encrypted authorization password, e.g. here is admin
     // echo -n admin | shasum -a 256
     // `8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918`

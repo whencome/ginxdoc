@@ -24,7 +24,7 @@ type Config struct {
 	// 是否启用文档
 	EnableDoc bool
 	// 静态资源路径
-	StaticResPath string
+	// StaticResPath string
 
 	// SHA256 encrypted authorization password, e.g. here is admin
 	// echo -n admin | shasum -a 256

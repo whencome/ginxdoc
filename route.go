@@ -3,8 +3,6 @@ package ginxdoc
 import (
 	"embed"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -39,8 +37,8 @@ var templateMap = KVMap{
 }
 
 func initTemplates() error {
-	rootPath = config.StaticResPath
-	if err := readTemplate(rootPath); err != nil {
+	// rootPath = config.StaticResPath
+	if err := readTemplate(); err != nil {
 		return err
 	}
 	return nil
@@ -56,12 +54,22 @@ func verifyPassword(passwordSha2 string) gin.HandlerFunc {
 	}
 }
 
-func readTemplate(rp string) error {
-	templatesPath := filepath.Join(rp, "templates")
+// getTemplateFileContent 获取模板文件内容
+func getTemplateFileContent(relativePath string) ([]byte, error) {
+	content, err := templatesRes.ReadFile("templates/" + relativePath)
+	if err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
+func readTemplate() error {
+	// templatesPath := filepath.Join(rp, "templates")
 	for k := range templateMap {
-		tByte, err := os.ReadFile(
-			filepath.Join(templatesPath, k+".html"),
-		)
+		// tByte, err := os.ReadFile(
+		// 	filepath.Join(templatesPath, k+".html"),
+		// )
+		tByte, err := getTemplateFileContent(k + ".html")
 		if err != nil {
 			return err
 		}

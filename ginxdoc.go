@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -19,10 +18,10 @@ const (
 
 // DefaultConfig 生成一个默认配置
 func DefaultConfig() *Config {
-	docPath, err := os.Getwd()
-	if err != nil {
-		docPath = "./"
-	}
+	// docPath, err := os.Getwd()
+	// if err != nil {
+	// 	docPath = "./"
+	// }
 	return &Config{
 		// Title, default `API Doc`
 		Title: "Ginx文档",
@@ -38,7 +37,7 @@ func DefaultConfig() *Config {
 		// 是否启用文档
 		EnableDoc: true,
 		// 静态资源路径
-		StaticResPath: docPath,
+		// StaticResPath: docPath,
 
 		// SHA256 encrypted authorization password, e.g. here is admin
 		// echo -n admin | shasum -a 256
