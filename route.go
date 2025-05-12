@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
-	"runtime"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -37,21 +35,11 @@ var templateMap = KVMap{
 }
 
 func initTemplates() error {
-	rootPath = getRootPath()
+	rootPath = config.StaticResPath
 	if err := readTemplate(rootPath); err != nil {
 		return err
 	}
 	return nil
-}
-
-func rootPathFunc() {}
-func getRootPath() string {
-	funcValue := reflect.ValueOf(rootPathFunc)
-	fn := runtime.FuncForPC(funcValue.Pointer())
-	filePath, _ := fn.FileLine(0)
-	rp := filepath.Dir(filePath)
-
-	return rp
 }
 
 func verifyPassword(passwordSha2 string) gin.HandlerFunc {

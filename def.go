@@ -22,9 +22,9 @@ type Config struct {
 	NoDocText string
 
 	// 是否启用文档
-	EnableDoc bool `json:"enable_doc"`
-	// 解析的字段标签名称，默认json
-	FieldTag string `json:"field_tag"`
+	EnableDoc bool
+	// 静态资源路径
+	StaticResPath string
 
 	// SHA256 encrypted authorization password, e.g. here is admin
 	// echo -n admin | shasum -a 256
