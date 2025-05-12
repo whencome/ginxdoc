@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"io"
+	"path"
 	"reflect"
 )
 
@@ -192,4 +193,24 @@ func CreateDefaultInstance(typ reflect.Type) reflect.Value {
 	}
 
 	return val
+}
+
+// GuessContentType 根据文件扩展名猜测MIME类型
+func GuessContentType(filepath string) string {
+	switch path.Ext(filepath) {
+	case ".css":
+		return "text/css"
+	case ".js":
+		return "application/javascript"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".html", ".htm":
+		return "text/html; charset=utf-8"
+	default:
+		return "application/octet-stream"
+	}
 }

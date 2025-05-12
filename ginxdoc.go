@@ -2,12 +2,19 @@ package ginxdoc
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	PROJECT_NAME    = "Ginx Docs"
+	PROJECT_VERSION = Version
 )
 
 // DefaultConfig 生成一个默认配置
@@ -99,7 +106,6 @@ func NewDoc(keyVals ...interface{}) {
 	}
 	doc.Hash = Md5Short(fmt.Sprintf("%s/%s/%s", doc.Group, doc.Name, doc.Path))
 	addDoc(doc)
-	return
 }
 
 // Register 注册文档路由
@@ -117,6 +123,28 @@ func Register(r *gin.Engine, middlewares ...gin.HandlerFunc) (err error) {
 	g0.Use(middlewares...)
 
 	g0.Static(config.UrlPrefix+"/static", filepath.Join(rootPath, "static"))
+
+	// 提供嵌入的静态文件服务
+	g0.GET("/static/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
+		// 确保路径安全，避免目录遍历攻击
+		if sanitizedPath := path.Clean("/static" + filepath); sanitizedPath != "/static"+filepath {
+			c.String(http.StatusBadRequest, "Bad request")
+			return
+		}
+		content, err := staticRes.ReadFile(path.Join("static", filepath))
+		if err != nil {
+			if err == io.EOF {
+				// 文件不存在的情况
+				c.String(http.StatusNotFound, "File not found")
+				return
+			}
+			c.String(http.StatusInternalServerError, "Internal Server Error")
+			return
+		}
+		// 根据文件扩展名设置正确的MIME类型
+		c.Data(http.StatusOK, GuessContentType(filepath), content)
+	})
 
 	g0.GET(config.UrlPrefix+"/", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")

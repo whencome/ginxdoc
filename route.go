@@ -1,6 +1,7 @@
 package ginxdoc
 
 import (
+	"embed"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,10 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	PROJECT_NAME    = "Ginx Docs"
-	PROJECT_VERSION = Version
-)
+// 使用embed嵌入静态资源
+
+//go:embed static/*
+var staticRes embed.FS
+
+//go:embed templates/*
+var templatesRes embed.FS
 
 type KVMap map[string]string
 type KVMapSlice []KVMap
