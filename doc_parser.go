@@ -484,7 +484,7 @@ func (p *DocParser) parseParam(param string) (ApiReqParam, bool) {
 	data := make([]rune, 0)
 	writeData := false
 	// 上一个不为空的字符索引
-	lastBlankIdx := 0
+	lastBlankIdx := -1
 	for i, char := range chars {
 		if char == ' ' || char == '\t' {
 			if math.Abs(float64(i-lastBlankIdx)) > 1 {
@@ -543,7 +543,7 @@ func (p *DocParser) parseRespString(str string) (FieldInfo, bool) {
 	data := make([]rune, 0)
 	writeData := false
 	// 上一个不为空的字符索引
-	lastBlankIdx := 0
+	lastBlankIdx := -1
 	for i, char := range chars {
 		if char == ' ' || char == '\t' {
 			if math.Abs(float64(i-lastBlankIdx)) > 1 { // 如果不是相邻的空格，则说明中间含有有效字符
@@ -677,7 +677,7 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
 	}
 
 	// 添加相应结果示例
-	respDemo := make(map[string]interface{})
+	var demoResponse interface{}
 	getDefaultValue := func(t string) interface{} {
 		t = strings.ToLower(strings.TrimSpace(t))
 		if t == "bool" || t == "boolean" {
@@ -691,30 +691,34 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
 		}
 		return ""
 	}
-	for _, field := range fields {
-		hasDot := strings.Contains(field.Tag, ".")
-		if !hasDot {
-			respDemo[field.Tag] = getDefaultValue(field.Type)
-			continue
-		}
-		mFields := strings.Split(field.Tag, ".")
-		mFieldsCnt := len(mFields)
-		var dst map[string]interface{} = respDemo
-		for i, f := range mFields {
-			if i == mFieldsCnt-1 {
-				dst[f] = getDefaultValue(field.Type)
-				break
+	if len(fields) == 1 && fields[0].Tag == "-" {
+		demoResponse = getDefaultValue(fields[0].Type)
+	} else {
+		respDemo := make(map[string]interface{})
+		for _, field := range fields {
+			hasDot := strings.Contains(field.Tag, ".")
+			if !hasDot {
+				respDemo[field.Tag] = getDefaultValue(field.Type)
+				continue
 			}
-			if _, ok := dst[f]; !ok {
-				dst[f] = make(map[string]interface{})
+			mFields := strings.Split(field.Tag, ".")
+			mFieldsCnt := len(mFields)
+			var dst map[string]interface{} = respDemo
+			for i, f := range mFields {
+				if i == mFieldsCnt-1 {
+					dst[f] = getDefaultValue(field.Type)
+					break
+				}
+				if _, ok := dst[f]; !ok {
+					dst[f] = make(map[string]interface{})
+				}
+				dst = dst[f].(map[string]interface{})
 			}
-			dst = dst[f].(map[string]interface{})
 		}
+		demoResponse = respDemo
 	}
-
-	var demoResponse interface{} = respDemo
 	if wrap != "off" && responseWrapperFunc != nil {
-		demoResponse = responseWrapperFunc(respDemo)
+		demoResponse = responseWrapperFunc(demoResponse)
 	}
 	jsonDemo, err := json.MarshalIndent(demoResponse, "", "    ")
 	if err == nil {

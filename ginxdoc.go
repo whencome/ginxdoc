@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -18,10 +17,6 @@ const (
 
 // DefaultConfig 生成一个默认配置
 func DefaultConfig() *Config {
-	// docPath, err := os.Getwd()
-	// if err != nil {
-	// 	docPath = "./"
-	// }
 	return &Config{
 		// Title, default `API Doc`
 		Title: "Ginx文档",
@@ -36,8 +31,6 @@ func DefaultConfig() *Config {
 
 		// 是否启用文档
 		EnableDoc: true,
-		// 静态资源路径
-		// StaticResPath: docPath,
 
 		// SHA256 encrypted authorization password, e.g. here is admin
 		// echo -n admin | shasum -a 256
@@ -121,10 +114,8 @@ func Register(r *gin.Engine, middlewares ...gin.HandlerFunc) (err error) {
 	g0 := r.Group("")
 	g0.Use(middlewares...)
 
-	g0.Static(config.UrlPrefix+"/static", filepath.Join(rootPath, "static"))
-
 	// 提供嵌入的静态文件服务
-	g0.GET("/static/*filepath", func(c *gin.Context) {
+	g0.GET(config.UrlPrefix+"/static/*filepath", func(c *gin.Context) {
 		filepath := c.Param("filepath")
 		// 确保路径安全，避免目录遍历攻击
 		if sanitizedPath := path.Clean("/static" + filepath); sanitizedPath != "/static"+filepath {

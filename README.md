@@ -6,6 +6,8 @@ ginxdoc是一个专门为ginx框架开发的一个文档工具，虽如此，其
 
 本项目借鉴了[https://github.com/kwkwc/gin-docs](https://github.com/kwkwc/gin-docs)项目，对后端代码进行了部分重写以实现预期的效果。
 
+**注意**：本项目在编译时会自动将静态资源嵌入到编译的目标程序中，因此无需拷贝静态资源到项目中。
+
 ## 在项目中使用ginxdoc
 
 ### 1. 初始化ginxdoc
@@ -98,6 +100,7 @@ func (h *DemoHandler) RegisterRoute(g *gin.RouterGroup) {
 
 * ginxdoc会使用字段的“desc”tag中的内容作为字段说明；
 * 显示字段暂时为写死内容，如果时请求参数，则解析“form”tag内容作为显示字段，其它则取"json" tag内容作为显示字段
+* 如果返回值为标量值（如int、bool、string等），可以使用“@Return - string 字段说明”的方式进行说明
 
 ## 统一返回值格式
 

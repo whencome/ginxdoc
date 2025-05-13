@@ -37,7 +37,6 @@ var templateMap = KVMap{
 }
 
 func initTemplates() error {
-	// rootPath = config.StaticResPath
 	if err := readTemplate(); err != nil {
 		return err
 	}
@@ -64,11 +63,7 @@ func getTemplateFileContent(relativePath string) ([]byte, error) {
 }
 
 func readTemplate() error {
-	// templatesPath := filepath.Join(rp, "templates")
 	for k := range templateMap {
-		// tByte, err := os.ReadFile(
-		// 	filepath.Join(templatesPath, k+".html"),
-		// )
 		tByte, err := getTemplateFileContent(k + ".html")
 		if err != nil {
 			return err
