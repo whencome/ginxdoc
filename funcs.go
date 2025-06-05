@@ -169,7 +169,7 @@ func CreateDefaultInstance(typ reflect.Type, depth int) reflect.Value {
 				if fieldType.Kind() == reflect.Ptr {
 					fieldType = fieldType.Elem()
 				}
-				if depth >= 3 { // 避免一直递归，导致内存移除
+				if depth >= dataNestDepth { // 避免一直递归，导致内存溢出
 					continue
 				}
 				fieldVal := CreateDefaultInstance(field.Type, depth+1)
@@ -180,7 +180,7 @@ func CreateDefaultInstance(typ reflect.Type, depth int) reflect.Value {
 	case reflect.Slice:
 		// 创建包含一个元素的切片
 		elemType := typ.Elem()
-		if elemType.Kind() == reflect.Struct && depth >= 3 { // 避免一直递归，导致内存移除
+		if elemType.Kind() == reflect.Struct && depth >= dataNestDepth { // 避免一直递归，导致内存溢出
 			break
 		}
 		elem := CreateDefaultInstance(elemType, depth+1)
@@ -191,7 +191,7 @@ func CreateDefaultInstance(typ reflect.Type, depth int) reflect.Value {
 	case reflect.Array:
 		// 创建数组并初始化第一个元素
 		elemType := typ.Elem()
-		if elemType.Kind() == reflect.Struct && depth >= 2 { // 避免一直递归，导致内存移除
+		if elemType.Kind() == reflect.Struct && depth >= dataNestDepth { // 避免一直递归，导致内存移除
 			break
 		}
 		elem := CreateDefaultInstance(elemType, depth+1)

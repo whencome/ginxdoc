@@ -77,7 +77,7 @@ func SetResponseWrapFunc(f func(v interface{}) interface{}) {
 }
 
 // SetResponseDocWrapFunc 设置响应结果文档报装函数
-func SetResponseDocWrapFunc(f func(respType string) string) {
+func SetResponseDocWrapFunc(f func(respType, respDesc string) string) {
     responseDocWrapperFunc = f
 }
 

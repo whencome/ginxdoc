@@ -450,7 +450,7 @@ func (p *DocParser) ParseStruct(v interface{}, depth int) StructInfo {
             fieldType = fieldType.Elem()
         }
         if fieldType.Kind() == reflect.Struct {
-            if depth >= 2 {
+            if depth >= dataNestDepth {
                 continue
             }
             childStruct := p.ParseStruct(fieldType, depth+1)
@@ -460,7 +460,7 @@ func (p *DocParser) ParseStruct(v interface{}, depth int) StructInfo {
             fieldInf.Struct = childStruct
         } else if fieldType.Kind() == reflect.Slice || fieldType.Kind() == reflect.Array {
             elemType := fieldType.Elem()
-            if depth >= 2 {
+            if depth >= dataNestDepth {
                 continue
             }
             item := createDefaultValue(elemType)
@@ -638,7 +638,7 @@ func (p *DocParser) buildRespMD(resp interface{}, wrap string) string {
     fieldPrefix := ""
     respWrap := ""
     if responseDocWrapperFunc != nil {
-        respWrap = responseDocWrapperFunc(obj.Name)
+        respWrap = responseDocWrapperFunc(obj.Name, obj.Desc)
         if respWrap != "" {
             fieldPrefix = fieldIndent
         }
@@ -667,7 +667,7 @@ func (p *DocParser) buildStructMDBody(obj StructInfo, fieldPrefix string) string
     md := ""
     for _, field := range obj.Fields {
         if field.Tag != "" {
-            md += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Type, field.Desc)
+            md += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, p.purifyTypeName(field.Type), field.Desc)
         }
         if field.IsStruct {
             prefix := fieldPrefix
@@ -693,24 +693,33 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
 `
     fieldPrefix := ""
     respWrap := ""
+    parseFields := true // 是否需要解析字段列表
     if responseDocWrapperFunc != nil {
-        respWrap = responseDocWrapperFunc("")
+        if len(fields) == 1 && fields[0].Tag == "-" {
+            field := fields[0]
+            respWrap = responseDocWrapperFunc(p.purifyTypeName(field.Type), field.Desc)
+            parseFields = false
+        } else {
+            respWrap = responseDocWrapperFunc("Any", "")
+        }
         if respWrap != "" {
             fieldPrefix = fieldIndent
         }
     }
     respMD += respWrap
-    for _, field := range fields {
-        if field.Tag != "" {
-            respMD += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Type, field.Desc)
-        }
-        if field.IsStruct {
-            prefix := fieldPrefix
+    if parseFields {
+        for _, field := range fields {
             if field.Tag != "" {
-                prefix += fieldIndent
+                respMD += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, p.purifyTypeName(field.Type), field.Desc)
             }
-            respMD += p.buildStructMDBody(field.Struct, prefix)
-            continue
+            if field.IsStruct {
+                prefix := fieldPrefix
+                if field.Tag != "" {
+                    prefix += fieldIndent
+                }
+                respMD += p.buildStructMDBody(field.Struct, prefix)
+                continue
+            }
         }
     }
 
@@ -764,4 +773,19 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
     }
 
     return respMD
+}
+
+// purifyTypeName 对类型名称进行处理，去除包名等信息
+func (p *DocParser) purifyTypeName(typeName string) string {
+    if !strings.Contains(typeName, ".") {
+        return typeName
+    }
+    dotPos := strings.Index(typeName, ".")
+    isList := strings.HasPrefix(typeName, "[]")
+    // 暂时不处理map的情形
+    pureName := typeName[dotPos+1:]
+    if isList {
+        pureName = "[]" + pureName
+    }
+    return pureName
 }

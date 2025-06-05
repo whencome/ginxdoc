@@ -23,13 +23,16 @@ var registeredTypes = make(map[string]interface{})
 var responseWrapperFunc func(interface{}) interface{}
 
 // 响应结果文档报装方法
-var responseDocWrapperFunc func(respType string) string
+var responseDocWrapperFunc func(respType string, respDesc string) string
 
 // 全局文档markdown内容，此内容将附加到每个文档的末尾
 var globalDocMD string
 
 // 字段缩进
 var fieldIndent string = "&nbsp;&nbsp;&nbsp;&nbsp;"
+
+// 数据解析深度
+var dataNestDepth int = 3
 
 // 初始化全局对象
 func init() {
@@ -49,7 +52,7 @@ func init() {
             "data":    v,
         }
     }
-    responseDocWrapperFunc = func(respType string) string {
+    responseDocWrapperFunc = func(respType string, respDesc string) string {
         return ""
     }
     Init(config)
