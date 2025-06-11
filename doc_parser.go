@@ -597,11 +597,11 @@ func (p *DocParser) parseRespString(str string) (FieldInfo, bool) {
 // buildParamMDByParams 根据@Param定义的参数解析请求参数markdown内容
 func (p *DocParser) buildParamMDByParams(params []ApiReqParam) string {
     reqParamMD := `
-|参数名|必选|类型|说明|
+|参数名称|参数说明|是否必须|数据类型|
 |:----|:----|:----|----|
 `
     for _, param := range params {
-        reqParamMD += fmt.Sprintf("|%s|%v|%s|%s|\n", param.Name, param.Required, param.Type, param.Description)
+        reqParamMD += fmt.Sprintf("|%s|%s|%v|%s|\n", param.Name, param.Description, param.Required, param.Type)
     }
     return reqParamMD
 }
@@ -611,11 +611,11 @@ func (p *DocParser) buildParamMDByStruct(req RequestInfo) string {
     reqParamMD := ""
     if req.Name != "" {
         reqParamMD += `
-|参数名|必选|类型|说明|
+|参数名称|参数说明|是否必须|数据类型|
 |:----|:----|:----|----|
 `
         for _, field := range req.Fields {
-            reqParamMD += fmt.Sprintf("|%s|%v|%s|%s|\n", field.Tag, field.Required, field.Type, field.Desc)
+            reqParamMD += fmt.Sprintf("|%s|%s|%v|%s|\n", field.Tag, field.Desc, field.Required, field.Type)
         }
     }
     return reqParamMD
@@ -632,7 +632,7 @@ func (p *DocParser) buildRespMD(resp interface{}, wrap string) string {
     }
     // 解析为markdown内容
     respMD := `
-|参数名|类型|说明|
+|参数名称|参数说明|类型|
 |:----|:----|----|
 `
     fieldPrefix := ""
@@ -667,7 +667,7 @@ func (p *DocParser) buildStructMDBody(obj StructInfo, fieldPrefix string) string
     md := ""
     for _, field := range obj.Fields {
         if field.Tag != "" {
-            md += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, p.purifyTypeName(field.Type), field.Desc)
+            md += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Desc, p.purifyTypeName(field.Type))
         }
         if field.IsStruct {
             prefix := fieldPrefix
@@ -688,7 +688,7 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
     }
 
     respMD := `
-|参数名|类型|说明|
+|参数名称|参数说明|类型|
 |:----|:----|----|
 `
     fieldPrefix := ""
@@ -700,7 +700,7 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
             respWrap = responseDocWrapperFunc(p.purifyTypeName(field.Type), field.Desc)
             parseFields = false
         } else {
-            respWrap = responseDocWrapperFunc("Any", "")
+            respWrap = responseDocWrapperFunc("", "")
         }
         if respWrap != "" {
             fieldPrefix = fieldIndent
@@ -710,7 +710,7 @@ func (p *DocParser) buildRespMDByFields(fields []FieldInfo, wrap string) string 
     if parseFields {
         for _, field := range fields {
             if field.Tag != "" {
-                respMD += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, p.purifyTypeName(field.Type), field.Desc)
+                respMD += fmt.Sprintf("|%s|%s|%s|\n", fieldPrefix+field.Tag, field.Desc, p.purifyTypeName(field.Type))
             }
             if field.IsStruct {
                 prefix := fieldPrefix

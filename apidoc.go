@@ -1,7 +1,7 @@
 package ginxdoc
 
 import (
-    "strings"
+	"strings"
 )
 
 // 全局配置
@@ -36,62 +36,62 @@ var dataNestDepth int = 3
 
 // 初始化全局对象
 func init() {
-    config = DefaultConfig()
-    apiDocs = &DocGroup{
-        Name:        "",                   // 分组名称
-        Description: "",                   // 分组描述
-        Sort:        100,                  // 用于控制文档排序
-        Groups:      make([]*DocGroup, 0), // 子分组
-        Docs:        make([]*DocInfo, 0),  // 文档列表
-    }
-    docMaps = make(map[string]*DocInfo)
-    responseWrapperFunc = func(v interface{}) interface{} {
-        return map[string]interface{}{
-            "code":    0,
-            "message": "ok",
-            "data":    v,
-        }
-    }
-    responseDocWrapperFunc = func(respType string, respDesc string) string {
-        return ""
-    }
-    Init(config)
+	config = DefaultConfig()
+	apiDocs = &DocGroup{
+		Name:        "",                   // 分组名称
+		Description: "",                   // 分组描述
+		Sort:        100,                  // 用于控制文档排序
+		Groups:      make([]*DocGroup, 0), // 子分组
+		Docs:        make([]*DocInfo, 0),  // 文档列表
+	}
+	docMaps = make(map[string]*DocInfo)
+	responseWrapperFunc = func(v interface{}) interface{} {
+		return map[string]interface{}{
+			"code":    0,
+			"message": "ok",
+			"data":    v,
+		}
+	}
+	responseDocWrapperFunc = func(respType string, respDesc string) string {
+		return ""
+	}
+	Init(config)
 }
 
 // addDoc 添加文档
 func addDoc(doc *DocInfo) {
-    if doc.Name == "" {
-        return
-    }
-    // 进行文档重复性检查
-    if _, ok := docMaps[doc.Hash]; ok {
-        return
-    }
-    docMaps[doc.Hash] = doc
+	if doc.Name == "" {
+		return
+	}
+	// 进行文档重复性检查
+	if _, ok := docMaps[doc.Hash]; ok {
+		return
+	}
+	docMaps[doc.Hash] = doc
 
-    // 处理默认分组
-    groupName := strings.TrimSpace(doc.Group)
-    if groupName == "" {
-        apiDocs.Docs = append(apiDocs.Docs, doc)
-        return
-    }
-    // 将文档加入到分组
-    found := false
-    for _, g := range apiDocs.Groups {
-        if g.Name == groupName {
-            g.Docs = append(g.Docs, doc)
-            found = true
-            break
-        }
-    }
-    if !found {
-        g := &DocGroup{
-            Name:   groupName,
-            Sort:   100,
-            Docs:   make([]*DocInfo, 0),
-            Groups: make([]*DocGroup, 0),
-        }
-        g.Docs = append(g.Docs, doc)
-        apiDocs.Groups = append(apiDocs.Groups, g)
-    }
+	// 处理默认分组
+	groupName := strings.TrimSpace(doc.Group)
+	if groupName == "" {
+		apiDocs.Docs = append(apiDocs.Docs, doc)
+		return
+	}
+	// 将文档加入到分组
+	found := false
+	for _, g := range apiDocs.Groups {
+		if g.Name == groupName {
+			g.Docs = append(g.Docs, doc)
+			found = true
+			break
+		}
+	}
+	if !found {
+		g := &DocGroup{
+			Name:   groupName,
+			Sort:   100,
+			Docs:   make([]*DocInfo, 0),
+			Groups: make([]*DocGroup, 0),
+		}
+		g.Docs = append(g.Docs, doc)
+		apiDocs.Groups = append(apiDocs.Groups, g)
+	}
 }
